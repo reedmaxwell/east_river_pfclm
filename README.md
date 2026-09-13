@@ -169,6 +169,12 @@ inputs/static, clm, initial, forcing_correction, obs
 .devcontainer/                GitHub Codespaces / VS Code container
 ```
 
+## License
+
+GNU Lesser General Public License v3.0 (`LICENSE`; the GPL v3.0 it supplements is in
+`COPYING`), the same family as ParFlow's LGPL.  The observations in `inputs/obs/` are
+public data from the USGS, the NRCS, and the East River SFA and keep their sources' terms.
+
 ## References
 
 - CONUS2.1 static inputs and the CW3E forcing: HydroFrame / HydroData (https://hydroframe.org),
