@@ -1,0 +1,7 @@
+runs/
+inputs/forcing/
+results/*_daily.csv
+*.tar.gz
+__pycache__/
+.DS_Store
+*.dist

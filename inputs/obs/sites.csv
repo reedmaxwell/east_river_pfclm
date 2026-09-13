@@ -1,0 +1,11 @@
+kind,site_id,site_name,lat,lon,conus2_i,conus2_j,local_i,local_j,in_mask,units,note
+streamflow,09112200,"EAST RIVER BELOW CEMENT CREEK NR CRESTED BUTTE, CO",38.7841599,-106.8708736,1378,1585,19,8,True,m3/s,
+streamflow,09112500,"EAST RIVER AT ALMONT, CO",38.66443715,-106.848095,1378,1577,19,0,True,m3/s,DOMAIN OUTLET
+swe,380:CO:SNTL,Butte,38.89435,-106.95327,1372,1601,13,24,True,mm,
+swe,737:CO:SNTL,Schofield Pass,39.01467,-107.04933,1366,1615,7,38,False,mm,off-mask (divide); use nearest in-mask cell w/ caveat
+et_tower,pumphouse_tower,Ryken et al. 2021 eddy flux tower (Pumphouse),38.91863,-106.951321,1373,1604,14,27,True,mm/day,valley-floor floodplain; UPPER-BOUND end-member ET (paper); record 2017-04-15..2019-09-27
+streamflow,09112000,"CEMENT CREEK NEAR CRESTED BUTTE, CO",38.82443729,-106.8528174,1380,1592,21,15,True,m3/s,added 2026-07-27; D4 85 vs USGS 85 km2 (-0.2%)
+streamflow,09111500,"SLATE RIVER NEAR CRESTED BUTTE, CO",38.8697146,-106.969489,1372,1596,13,19,True,m3/s,added 2026-07-27; D4 182 vs USGS 178 km2 (+2.0%)
+streamflow,385106106571000,"SLATE R AB BAXTER GL @HWY 135 NR CRESTED BUTTE, CO",38.85165929,-106.9533773,1373,1594,14,17,True,m3/s,added 2026-07-27; D4 190 vs USGS 190 km2 (-0.1%)
+streamflow,09110500,"EAST RIVER NEAR CRESTED BUTTE, CO.",38.8644369,-106.9097644,1376,1599,17,22,True,m3/s,added 2026-07-27; D4 234 vs USGS 234 km2 (+0.1%)
+streamflow,pumphouse,EAST RIVER AT PUMPHOUSE (SFA ER-PHF0),38.922447,-106.950828,1373,1604,14,27,True,m3/s,added 2026-07-28; obs from Ryken water-balance workbook (SFA release has a WY2017 gap). Gage area 85 km2 (Sprenger et al. 2024 HESS); MODEL cell drains 102 km2 (+20%) -- compare DISCHARGE not yield
