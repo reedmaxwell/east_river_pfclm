@@ -28,10 +28,10 @@ def collect(rundir, name, var, out):
     hours = [int(f.split(".")[-2 if var != "clm" else -3]) for f in files]
     data = np.stack([read_pfb(f) for f in files])
     dims = ("time", "z", "y", "x") if data.ndim == 4 else ("time", "y", "x")
-    da = xr.DataArray(data, dims=dims, coords={"time": hours}, name=var, attrs={"units": {"press": "m", "satur": "-", "evaptrans": "1/h", "clm": "see layer_names"}[var]})
+    da = xr.DataArray(data, dims=dims, coords={"time": ("time", hours, {"units": "hours since 2016-10-01 00:00:00", "long_name": "model hour (end of the hour, UTC)"})},
+                      name=var, attrs={"units": {"press": "m", "satur": "-", "evaptrans": "1/h", "clm": "see layer_names"}[var]})
     if var == "clm":
         da.attrs["layer_names"] = "; ".join(f"{k}: {v}" for k, v in enumerate(CLM_LAYERS))
-    da.coords["time"].attrs["units"] = "hours since 2016-10-01 00:00:00"
     try:
         import netCDF4  # noqa: F401  (compression needs the netCDF4 backend)
         da.to_netcdf(os.path.join(out, f"{name}.{var}.nc"), engine="netcdf4", encoding={var: {"zlib": True, "complevel": 4}})
