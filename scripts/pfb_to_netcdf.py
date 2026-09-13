@@ -6,7 +6,7 @@ xarray.  Works with any ParFlow build (no NetCDF support needed at run time).
 
 Variables: press (pressure head, m, 10 layers), satur (if written), evaptrans (CLM's flux into
 ParFlow, 1/h per cell), clm (the single-file CLM output: layers listed in the file's attributes).
-Time is hours since 2016-10-01 00:00 UTC.  Needs xarray and netCDF4.
+Time is hours since 2016-10-01 00:00 UTC.  Needs xarray; netCDF4 for compressed NetCDF4 files (falls back to scipy's NetCDF3 without it).
 """
 import argparse
 import glob
@@ -32,7 +32,12 @@ def collect(rundir, name, var, out):
     if var == "clm":
         da.attrs["layer_names"] = "; ".join(f"{k}: {v}" for k, v in enumerate(CLM_LAYERS))
     da.coords["time"].attrs["units"] = "hours since 2016-10-01 00:00:00"
-    da.to_netcdf(os.path.join(out, f"{name}.{var}.nc"), encoding={var: {"zlib": True, "complevel": 4}})
+    try:
+        import netCDF4  # noqa: F401  (compression needs the netCDF4 backend)
+        da.to_netcdf(os.path.join(out, f"{name}.{var}.nc"), engine="netcdf4", encoding={var: {"zlib": True, "complevel": 4}})
+    except ImportError:
+        print("  (netCDF4 not installed: writing uncompressed NetCDF3 through scipy; pip install netCDF4 for compression)")
+        da.to_netcdf(os.path.join(out, f"{name}.{var}.nc"))
     print(f"  {var}: {len(files)} files -> {name}.{var}.nc")
 
 
