@@ -106,17 +106,21 @@ def main():
     so = pd.read_csv(os.path.join(OBS, "obs_swe_daily.csv"), parse_dates=["date"]).set_index("date")
     eo = pd.read_csv(os.path.join(OBS, "flux_tower_pumphouse_daily.csv"), parse_dates=["date"]).set_index("date")["et_mm_day_published"]
     rows = []
+    def paired(model_col, obs_series, lo=None, hi=None):
+        """model and observation on their common dates (optionally windowed), as arrays."""
+        j = pd.concat([out[model_col].rename("m"), obs_series.rename("o")], axis=1, join="inner").dropna()
+        if lo is not None:
+            j = j[(j.index >= lo) & (j.index <= hi)]
+        return j["m"].values, j["o"].values
     for gid in qo.columns:
         if f"q_{gid}" in out:
-            m = metrics(out[f"q_{gid}"].reindex(qo.index).values, qo[gid].values)
-            rows.append(dict(quantity=f"streamflow {gid} [m3/s], daily", **m))
-    melt = (out.index >= WY0 + pd.Timedelta(days=180)) & (out.index <= WY0 + pd.Timedelta(days=300))
+            rows.append(dict(quantity=f"streamflow {gid} [m3/s], daily", **metrics(*paired(f"q_{gid}", qo[gid]))))
+    melt_lo, melt_hi = WY0 + pd.Timedelta(days=180), WY0 + pd.Timedelta(days=300)
     for sid in so.columns:
         if f"swe_{sid}" in out:
-            mm = out[f"swe_{sid}"].reindex(so.index).values; oo = so[sid].values
-            rows.append(dict(quantity=f"SWE {sid} [mm], whole year", **metrics(mm, oo)))
-            rows.append(dict(quantity=f"SWE {sid} [mm], WY days 180-300", **metrics(mm[melt[:len(mm)]], oo[melt[:len(oo)]])))
-    rows.append(dict(quantity="ET at the tower [mm/day], 15 Apr-30 Sep", **metrics(out["et_tower"].reindex(eo.index).values, eo.values)))
+            rows.append(dict(quantity=f"SWE {sid} [mm], whole year", **metrics(*paired(f"swe_{sid}", so[sid]))))
+            rows.append(dict(quantity=f"SWE {sid} [mm], WY days 180-300", **metrics(*paired(f"swe_{sid}", so[sid], melt_lo, melt_hi))))
+    rows.append(dict(quantity="ET at the tower [mm/day], 15 Apr-30 Sep", **metrics(*paired("et_tower", eo))))
     tab = pd.DataFrame(rows).round(3); tab.to_csv(os.path.join(ROOT, "results", f"{name}_scores.csv"), index=False)
     print(tab.to_string(index=False))
     # figure
@@ -124,7 +128,8 @@ def main():
     ax[0].plot(qo.index, qo["09112500"], "k", lw=1, label="USGS 09112500 Almont"); ax[0].plot(out.index, out["q_09112500"], "C0", lw=1, label="model"); ax[0].set_ylabel("streamflow [m3/s]")
     for k, sid in enumerate(so.columns):
         ax[1 + k].plot(so.index, so[sid], "k", lw=1, label=f"SNOTEL {sid}"); ax[1 + k].plot(out.index, out[f"swe_{sid}"], "C0", lw=1, label="model"); ax[1 + k].set_ylabel("SWE [mm]")
-    ax[3].plot(eo.index, eo, "k.", ms=3, label="tower"); ax[3].plot(out.index, out["et_tower"], "C0", lw=1, label="model"); ax[3].set_ylabel("ET [mm/day]")
+    eo_wy = eo[(eo.index >= WY0) & (eo.index < WY0 + pd.Timedelta(days=366))]
+    ax[3].plot(eo_wy.index, eo_wy, "k.", ms=3, label="tower"); ax[3].plot(out.index, out["et_tower"], "C0", lw=1, label="model"); ax[3].set_ylabel("ET [mm/day]")
     for x in ax:
         x.legend(frameon=False); x.grid(alpha=0.3)
     fig.suptitle(f"East River WY2017: {name}")

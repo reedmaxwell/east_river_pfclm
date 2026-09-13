@@ -102,7 +102,34 @@ Reference timings and the validation scores are in the next section.
 
 ## What the case reproduces
 
-(filled from the validation run on ParFlow v3.15.0)
+Scores of `run_east_river.py` as shipped, on ParFlow v3.15.0 (Release build, CLM, one core
+of an Apple M-series laptop), from `scripts/evaluate.py`.  Daily values, water year 2017.
+
+| quantity | bias | RMSE | r | NSE | KGE |
+|---|---|---|---|---|---|
+| streamflow, East River at Almont 09112500 [m3/s] | +1.5 | 7.1 | 0.91 | 0.82 | 0.85 |
+| streamflow, East River below Cement Creek 09112200 [m3/s] | +1.4 | 6.4 | 0.93 | 0.84 | 0.86 |
+| streamflow, Slate River above Baxter Gulch [m3/s] | -1.3 | 3.7 | 0.90 | 0.75 | 0.61 |
+| SWE, Butte SNOTEL 380 [mm], whole year | -16 | 38 | 0.99 | 0.97 | 0.86 |
+| SWE, Butte SNOTEL 380 [mm], melt season (WY days 180-300) | -32 | 60 | 1.00 | 0.92 | 0.70 |
+| SWE, Schofield Pass SNOTEL 737 [mm], whole year | -28 | 130 | 0.97 | 0.93 | 0.84 |
+| SWE, Schofield Pass SNOTEL 737 [mm], melt season | +3 | 202 | 0.95 | 0.85 | 0.70 |
+| ET, Pumphouse tower [mm/day], 15 Apr to 30 Sep | -0.10 | 0.80 | 0.76 | 0.54 | 0.74 |
+
+`results/er_wy2017_evaluation.png` shows the four series.  The observed peak at Almont is
+72 m3/s and the model's 66; the annual mean is 11.9 against 13.4 m3/s.  Schofield Pass melts
+out about three weeks late and peaks 20 % low: the pillow sits in a clearing and its model
+cell is forest, so part of that is representativeness, not error.  Butte melts out within a
+day of the pillow.
+
+Cost: 8,760 hourly steps in 375 s wall time on one core, 311 s of it in the nonlinear
+solver; 53,825 Newton iterations, 223,289 linear iterations, 82,300 function
+evaluations.  Hourly output for the year is about 2 GB.
+
+The calibrated configuration was developed on a ParFlow feature branch with two CLM
+soil-moisture-stress keys that ParFlow 3.15 does not have.  Without them the hydrograph
+is unchanged (NSE 0.82 against 0.82 on the same forcing) and the end-of-year subsurface
+state differs by 0.35 m RMS, so treat the initial condition as approximate to this build.
 
 ## Outputs
 
