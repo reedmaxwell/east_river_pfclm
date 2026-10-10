@@ -27,6 +27,10 @@ ap.add_argument("--hours", type=int, default=8760, help="hours to simulate (8760
 ap.add_argument("--name", default="er_wy2017", help="run name (output prefix)")
 ap.add_argument("--np", type=int, default=1, help="MPI processes (P x Q decomposition is set below)")
 ap.add_argument("--netcdf", action="store_true", help="also write NetCDF output (needs a ParFlow built with NetCDF)")
+ap.add_argument("--overland", default="kinematic", choices=("kinematic", "diffusive", "implicit", "dwe"),
+                help="overland flow scheme: the kinematic wave; the diffusive wave with the friction-slope "
+                     "magnitude lagged one step, or fully implicit (both need ParFlow PR 777); or the "
+                     "OverlandDiffusive boundary condition (dwe)")
 args = ap.parse_args()
 
 rundir = os.path.join(ROOT, "runs", args.name)
@@ -186,7 +190,7 @@ er.Cycle.constant.Names = "alltime"
 er.Cycle.constant.alltime.Length = 1
 er.Cycle.constant.Repeat = -1
 er.BCPressure.PatchNames = "top bottom side"
-er.Patch.top.BCPressure.Type = "OverlandKinematic"
+er.Patch.top.BCPressure.Type = "OverlandDiffusive" if args.overland == "dwe" else "OverlandKinematic"
 er.Patch.top.BCPressure.Cycle = "constant"
 er.Patch.top.BCPressure.alltime.Value = 0.0
 er.Patch.bottom.BCPressure.Type = "FluxConst"
@@ -195,6 +199,17 @@ er.Patch.bottom.BCPressure.alltime.Value = 0.0
 er.Patch.side.BCPressure.Type = "FluxConst"
 er.Patch.side.BCPressure.Cycle = "constant"
 er.Patch.side.BCPressure.alltime.Value = 0.0
+
+# diffusive wave options on OverlandKinematic (ParFlow pull request 777).  With the friction
+# slope under both flux terms this is the diffusive wave; "diffusive" takes the magnitude
+# from the previous step, "implicit" from the one being solved for.  The two agree to a few
+# millimetres of ponded depth on this basin and cost the same as the kinematic wave.
+if args.overland in ("diffusive", "implicit"):
+    level = "Lagged" if args.overland == "diffusive" else "Implicit"
+    DIFF = "Solver.OverlandKinematic.Diffusion."
+    for key, value in (("SlopeMagnitude", "FrictionSlope"), ("BedTermMagnitude", level),
+                       ("SurfaceTermMagnitude", level), ("Jacobian", "FullNewton")):
+        er.pfset(key=DIFF + key, value=value, silence_if_undefined=True)
 
 # ---------------------------------------------------------------- initial condition
 # the spun-up pressure field (a cyclic WY2017 coupled spin-up) and the matching CLM restart
