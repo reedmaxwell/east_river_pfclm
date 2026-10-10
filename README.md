@@ -23,10 +23,13 @@ physics in ParFlow 3.15, and the solver settings that ran fastest on it.
   writer fsync fix (#779); it is what the Codespaces container builds.  Set `PARFLOW_DIR` to
   the install.  A build without #723 ignores the lookup keys and runs slower; one without
   #777 cannot run the `--overland diffusive` and `implicit` schemes.
-- Python 3.10+ with `pftools` (ships with ParFlow: `pip install pftools`), `numpy`,
-  `pandas`, `matplotlib`; `xarray` and `netCDF4` for the NetCDF converter; `hf_hydrodata`
-  and `subsettools` only if you rebuild the forcing from HydroData (needs an account at
-  https://hydrogen.princeton.edu/signup).
+- Python 3.10+ with `pftools` from the same ParFlow source as the binary, `numpy`, `pandas`,
+  `matplotlib`; `xarray` and `netCDF4` for the NetCDF converter; `hf_hydrodata` and
+  `subsettools` only if you rebuild the forcing from HydroData (needs an account at
+  https://hydrogen.princeton.edu/signup).  The PyPI `pftools` (1.3.15) runs the deck and
+  scores kinematic-wave runs, but `evaluate.py` needs the diffusive flux formula that #777
+  adds to `parflow.tools.hydrology` for `--overland` runs: configure ParFlow with
+  `-DPARFLOW_ENABLE_PYTHON=TRUE`, build and install, then `pip install <prefix>/python`.
 - GitHub Codespaces: `.devcontainer/` builds HDF5, netCDF, Hypre and ParFlow from source,
   ParFlow from the `east-river-2026` branch pinned to one commit, and installs the Python
   packages.  The forcing download in `postCreateCommand` is the slow step (330 MB compressed).
@@ -170,7 +173,10 @@ formats costs three times the I/O of either, so pick one.
 
 `scripts/evaluate.py` scores streamflow at the gages, SWE at the two pillows, and ET at the
 tower with the conventions in its docstring (local days, the gage's CONUS2 cell, melt-season
-window), and writes `results/<name>_scores.csv` and a four-panel figure.
+window), and writes `results/<name>_scores.csv` and a four-panel figure.  It reads the run's
+`.pfidb` to pick the overland flux formula that matches the scheme the run used, and prints
+which one; an `OverlandDiffusive` run is scored with the friction-slope implicit formula,
+the closest pftools has, and the label says so.
 
 ## Troubleshooting
 

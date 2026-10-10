@@ -56,12 +56,52 @@ def metrics(m, o):
     return dict(n=len(m), bias=m.mean() - o.mean(), rmse=np.sqrt(np.mean((m - o) ** 2)), r=r, NSE=nse, KGE=kge)
 
 
+def read_pfidb(path):
+    """The run's key database as a dict (the .pfidb written by pftools)."""
+    lines = open(path).read().split("\n")
+    n = int(lines[0]); d = {}
+    for k in range(n):
+        d[lines[4 * k + 2]] = lines[4 * k + 4]
+    return d
+
+
+def overland_formula(keys):
+    """Pick the pftools flux formula that matches the run's overland scheme.
+
+    Returns (kwargs for hy.calculate_overland_flow_grid, needs_old_pressure, label).  The
+    kinematic wave is the deck's default.  Runs made with --overland diffusive or implicit set
+    the Solver.OverlandKinematic.Diffusion keys (ParFlow pull request 777), and pftools from
+    that branch has the matching OverlandKinematicDiffusive formula.  OverlandDiffusive has no
+    formula of its own in pftools; the friction-slope, implicit form solves the same equation
+    with a slightly different face-gradient discretization, so it is used as the closest
+    available and the label says so.
+    """
+    bc = keys.get("Patch.top.BCPressure.Type", "OverlandKinematic")
+    D = "Solver.OverlandKinematic.Diffusion."
+    if bc == "OverlandDiffusive":
+        return (dict(flow_method="OverlandKinematicDiffusive", slope_magnitude="FrictionSlope",
+                     bed_term_magnitude="Implicit", surface_term_magnitude="Implicit"),
+                False, "OverlandDiffusive run; flows from the friction-slope implicit formula (approximate)")
+    if D + "SlopeMagnitude" in keys and keys[D + "SlopeMagnitude"] != "Kinematic":
+        bed = keys.get(D + "BedTermMagnitude", "Lagged"); surf = keys.get(D + "SurfaceTermMagnitude", "Lagged")
+        return (dict(flow_method="OverlandKinematicDiffusive", slope_magnitude=keys[D + "SlopeMagnitude"],
+                     bed_term_magnitude=bed, surface_term_magnitude=surf, alpha=float(keys.get(D + "Alpha", 1.0))),
+                surf == "Lagged" or bed == "Lagged",
+                f"diffusive wave: SlopeMagnitude={keys[D + 'SlopeMagnitude']}, bed {bed}, surface {surf}")
+    return dict(flow_method="OverlandKinematic"), False, "kinematic wave"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("rundir"); ap.add_argument("--name", default=None, help="run name (default: the .pfidb in rundir)")
     a = ap.parse_args()
     name = a.name or os.path.basename(glob.glob(os.path.join(a.rundir, "*.pfidb"))[0])[:-6]
     rd = a.rundir
+    flow_kw, needs_old, label = overland_formula(read_pfidb(os.path.join(rd, f"{name}.pfidb")))
+    if flow_kw["flow_method"] != "OverlandKinematic" and "surface_term_magnitude" not in hy.calculate_overland_flow_grid.__code__.co_varnames:
+        raise SystemExit("this run used a diffusive wave scheme; the installed pftools has no formula for it "
+                         "(needs pftools from a ParFlow source with pull request 777, e.g. the east-river-2026 build)")
+    print(f"overland flux formula: {label}")
     mask = read_pfb(os.path.join(rd, f"{name}.out.mask.pfb")) > 0.5
     sx = read_pfb(os.path.join(rd, f"{name}.out.slope_x.pfb")); sy = read_pfb(os.path.join(rd, f"{name}.out.slope_y.pfb")); mn = read_pfb(os.path.join(rd, f"{name}.out.mannings.pfb"))
     sites = pd.read_csv(os.path.join(OBS, "sites.csv"))
@@ -78,12 +118,18 @@ def main():
             jj, ii = np.where(mask[-1]); k = np.argmin((ii - i) ** 2 + (jj - j) ** 2); i, j = int(ii[k]), int(jj[k])
         return i, j
     swe_cells = {s.site_id: cell(s) for _, s in swes.iterrows()}
+    p_prev = None
     for h in hours:
         d = local_day(h)
-        if d < 0:
-            continue
         p = read_pfb(press[h])
-        flow = hy.calculate_overland_flow_grid(p, sx, sy, mn, DX, DY, flow_method="OverlandKinematic", mask=mask)   # m3/h per cell
+        if d < 0:
+            p_prev = p
+            continue
+        if needs_old and p_prev is None and h - 1 in press:                      # the lagged magnitude needs the hour before
+            p_prev = read_pfb(press[h - 1])
+        flow = hy.calculate_overland_flow_grid(p, sx, sy, mn, DX, DY, mask=mask, pressure_old=p_prev if needs_old else None,
+                                               **flow_kw)                            # m3/h per cell
+        p_prev = p
         for _, g in gages.iterrows():
             q[g.site_id][d] += flow[int(g.local_j), int(g.local_i)] / 3600.0
         nq[d] += 1
