@@ -293,11 +293,12 @@ er.Solver.PrintMannings = True
 er.Solver.PrintMask = True
 er.Solver.PrintTop = True
 if args.netcdf:
-    er.NetCDF.NumStepsPerFile = 24
+    er.NetCDF.NumStepsPerFile = 24             # one file per day for the ParFlow variables
+    er.NetCDF.CLMNumStepsPerFile = 24          # and one per day for the CLM variables
     er.NetCDF.WritePressure = True
     er.NetCDF.WriteSaturation = True
+    er.NetCDF.WriteEvapTrans = True
     er.NetCDF.WriteCLM = True
-    er.NetCDF.EvapTrans = True
 
 # ---------------------------------------------------------------- distribute inputs and run
 for f in ("pf_indicator.pfb", "slope_x.pfb", "slope_y.pfb", "mannings.pfb", "pf_flowbarrier.pfb", "ic_pressure.pfb"):
