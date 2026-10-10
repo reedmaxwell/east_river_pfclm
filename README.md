@@ -3,7 +3,8 @@
 A real-watershed, coupled ParFlow-CLM simulation you can run on a laptop: the East River
 headwaters of the Gunnison, Colorado (Upper Colorado basin), as a 32 by 41 by 10 subset of
 the CONUS2.1 model at 1 km, for water year 2017, with observations to score it against.
-One flat Python script holds every key.  A full year takes about five minutes on one core.
+One flat Python script holds every key.  A full year takes about five minutes on one laptop
+core, eleven on one process of a 4-core GitHub Codespace.
 
 The case is the calibrated configuration from the TFG_smoother East River test bed
 (Maxwell, 2026): CONUS2.1 static inputs, CW3E forcing with three documented bias
@@ -35,7 +36,7 @@ physics in ParFlow 3.15, and the solver settings that ran fastest on it.
 ```bash
 git clone https://github.com/reedmaxwell/east_river_pfclm.git && cd east_river_pfclm
 bash scripts/get_forcing.sh                       # the corrected WY2017 forcing, from the release assets
-python scripts/run_east_river.py                  # runs/er_wy2017/, hourly output, ~5 min
+python scripts/run_east_river.py                  # runs/er_wy2017/, hourly output, 5 min (laptop) to 11 min (Codespace)
 python scripts/evaluate.py runs/er_wy2017         # scores + figure in results/
 python scripts/pfb_to_netcdf.py runs/er_wy2017    # optional: one NetCDF per variable
 ```
@@ -55,7 +56,8 @@ depth on a few flat cells.
   at Almont (09112500), 750 km2.
 - 10 layers, 200 m total: 100, 50, 25, 12.5, 5, 2.5, 0.5, 0.3, 0.15, 0.05 m from the bottom up
   (variable dz).  The top metre holds the CONUS2.1 soil classes, below is geology.
-- Terrain-following grid, kinematic overland flow on the top patch, no-flow bottom and sides.
+- Terrain-following grid, overland flow on the top patch (kinematic wave by default; see
+  `--overland`), no-flow bottom and sides.
 
 ## Inputs and where they come from
 
@@ -110,34 +112,39 @@ hour by hour and over the year on a single core:
 | `Solver.Nonlinear.EtaChoice EtaConstant`, `EtaValue 0.01` | linear solves to a fixed relative tolerance; the adaptive (Walker2) forcing was 3 % slower here |
 | `Solver.Linear.Preconditioner PFMGOctree` at its defaults | the PFMG relaxation, cycle, and smoother settings, SMG, and the Krylov dimension were swept: within noise |
 | one-hour constant time step | CLM's coupling interval |
+| `--overland` scheme | kinematic, diffusive (lagged or implicit magnitude) and `OverlandDiffusive` cost the same: 7.9, 8.2, 7.9 and 7.9 s for ten days on one laptop core, with the same Newton count per step and quadratic convergence in every step |
 
 Reference timings and the validation scores are in the next section.
 
 ## What the case reproduces
 
-Scores of `run_east_river.py` as shipped, on ParFlow v3.15.0 (Release build, CLM, one core
-of an Apple M-series laptop), from `scripts/evaluate.py`.  Daily values, water year 2017.
+Scores of `run_east_river.py` as shipped, on the `east-river-2026` build at commit 1a084a5b
+(`parflow/master` plus the pull requests under Prerequisites; Release build, CLM, one process),
+from `scripts/evaluate.py`.  Daily values, water year 2017.  An Apple M-series laptop and the
+Codespaces container give the same scores to three decimals.
 
 | quantity | bias | RMSE | r | NSE | KGE |
 |---|---|---|---|---|---|
-| streamflow, East River at Almont 09112500 [m3/s] | +1.5 | 7.1 | 0.91 | 0.82 | 0.85 |
-| streamflow, East River below Cement Creek 09112200 [m3/s] | +1.4 | 6.4 | 0.93 | 0.84 | 0.86 |
-| streamflow, Slate River above Baxter Gulch [m3/s] | -1.3 | 3.7 | 0.90 | 0.75 | 0.61 |
-| SWE, Butte SNOTEL 380 [mm], whole year | -16 | 38 | 0.99 | 0.97 | 0.86 |
-| SWE, Butte SNOTEL 380 [mm], melt season (WY days 180-300) | -32 | 60 | 1.00 | 0.92 | 0.70 |
+| streamflow, East River at Almont 09112500 [m3/s] | +1.3 | 7.0 | 0.91 | 0.82 | 0.86 |
+| streamflow, East River below Cement Creek 09112200 [m3/s] | +1.3 | 6.3 | 0.93 | 0.85 | 0.87 |
+| streamflow, Slate River above Baxter Gulch [m3/s] | -1.3 | 3.7 | 0.90 | 0.75 | 0.60 |
+| SWE, Butte SNOTEL 380 [mm], whole year | -16 | 37 | 0.99 | 0.97 | 0.86 |
+| SWE, Butte SNOTEL 380 [mm], melt season (WY days 180-300) | -30 | 59 | 1.00 | 0.92 | 0.71 |
 | SWE, Schofield Pass SNOTEL 737 [mm], whole year | -28 | 130 | 0.97 | 0.93 | 0.84 |
-| SWE, Schofield Pass SNOTEL 737 [mm], melt season | +3 | 202 | 0.95 | 0.85 | 0.70 |
-| ET, Pumphouse tower [mm/day], 15 Apr to 30 Sep | -0.10 | 0.80 | 0.76 | 0.54 | 0.74 |
+| SWE, Schofield Pass SNOTEL 737 [mm], melt season | +5 | 203 | 0.95 | 0.84 | 0.70 |
+| ET, Pumphouse tower [mm/day], 15 Apr to 30 Sep | -0.04 | 0.79 | 0.76 | 0.55 | 0.75 |
 
 `results/er_wy2017_evaluation.png` shows the four series.  The observed peak at Almont is
-72 m3/s and the model's 66; the annual mean is 11.9 against 13.4 m3/s.  Schofield Pass melts
+72 m3/s and the model's 65; the annual mean is 11.9 against 13.2 m3/s.  Schofield Pass melts
 out about three weeks late and peaks 20 % low: the pillow sits in a clearing and its model
 cell is forest, so part of that is representativeness, not error.  Butte melts out within a
 day of the pillow.
 
-Cost: 8,760 hourly steps in 375 s wall time on one core, 311 s of it in the nonlinear
-solver; 53,825 Newton iterations, 223,289 linear iterations, 82,300 function
-evaluations.  Hourly output for the year is about 2 GB.
+Cost: 8,760 hourly steps in 312 s wall time on one laptop core, 244 s of it in the nonlinear
+solver, and 672 s on one process of a 4-core Codespace; 52,331 Newton iterations, 219,331
+linear iterations, 78,674 function evaluations.  Hourly PFB output for the year is about
+3.4 GB in some 27,000 files; `--netcdf` writes the same fields as about 770 daily NetCDF files
+at the same cost (see Outputs).
 
 The calibrated configuration was developed on a ParFlow feature branch with two CLM
 soil-moisture-stress keys that ParFlow 3.15 does not have.  Without them the hydrograph
@@ -151,8 +158,15 @@ flux into ParFlow (`*.out.evaptrans.*`), and the single-file CLM output
 (`*.out.clm_output.NNNNN.C.pfb`: latent, longwave, sensible and ground heat fluxes, total /
 ground / soil / vegetation evaporation, transpiration, infiltration, SWE, ground temperature,
 irrigation, soil temperatures).  `scripts/pfb_to_netcdf.py` collects any of them into one
-NetCDF file per variable; `run_east_river.py --netcdf` writes NetCDF directly if ParFlow
-was built with it.
+NetCDF file per variable.
+
+`run_east_river.py --netcdf` writes NetCDF directly, if ParFlow was built with it: pressure,
+saturation, CLM's flux and the CLM fields, 24 hourly steps per file, so a water year is about
+770 files instead of 27,000, at the same I/O time as the PFB writes (0.8 against 1.1 s per ten
+days on one core).  That matters on Lustre, whose metadata servers are sensitive to file
+count.  Adding `NetCDF.Compression = True` with `NetCDF.CompressionLevel = 1` in the script
+halves the file size for about 7 % more run time; higher levels gain nothing.  Writing both
+formats costs three times the I/O of either, so pick one.
 
 `scripts/evaluate.py` scores streamflow at the gages, SWE at the two pillows, and ET at the
 tower with the conventions in its docstring (local days, the gage's CONUS2 cell, melt-season
@@ -168,7 +182,10 @@ window), and writes `results/<name>_scores.csv` and a four-panel figure.
   pressure and the CLM restart are a matched pair from the same spin-up; replace both or
   neither.
 - ParFlow silently ignores keys it does not know.  If a physics option seems to do nothing,
-  check the ParFlow version.
+  check the ParFlow version.  The banner says 3.15.0 for the `east-river-2026` build too;
+  `git -C <source> log -1` is the reliable check.
+- `pftools` prints validation warnings for the saturation-lookup and `--overland` keys it does
+  not know yet (pull requests #723 and #777).  They are harmless; the run proceeds.
 
 ## File structure
 
