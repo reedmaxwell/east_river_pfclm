@@ -12,16 +12,23 @@ physics in ParFlow 3.15, and the solver settings that ran fastest on it.
 
 ## Prerequisites
 
-- ParFlow 3.15.0 or later, built with CLM (`-DPARFLOW_HAVE_CLM=ON`) and as a Release build.
-  Set `PARFLOW_DIR` to the install.  The surface ponding predictor this case uses was fixed in
-  ParFlow pull request 761 (September 2026); earlier versions run but converge slower.
+- ParFlow built with CLM (`-DPARFLOW_HAVE_CLM=ON`) as a Release build, from a source that
+  includes two open pull requests the deck depends on: the saturation lookup table
+  (parflow/parflow #723, the `Geom.*.Saturation.NumSamplePoints` keys) and the diffusive wave
+  options for `OverlandKinematic` (#777, used by `--overland`).  The surface ponding predictor
+  this case uses was fixed in #761 (September 2026), which v3.15.0 predates.  The branch
+  `east-river-2026` on https://github.com/reedmaxwell/parflow is `parflow/master` plus #723,
+  #777, the CLM dry-canopy fix (#775), the `Solver.CLM.VonKarman` key (#769) and the NetCDF
+  writer fsync fix (#779); it is what the Codespaces container builds.  Set `PARFLOW_DIR` to
+  the install.  A build without #723 ignores the lookup keys and runs slower; one without
+  #777 cannot run the `--overland diffusive` and `implicit` schemes.
 - Python 3.10+ with `pftools` (ships with ParFlow: `pip install pftools`), `numpy`,
   `pandas`, `matplotlib`; `xarray` and `netCDF4` for the NetCDF converter; `hf_hydrodata`
   and `subsettools` only if you rebuild the forcing from HydroData (needs an account at
   https://hydrogen.princeton.edu/signup).
-- GitHub Codespaces: `.devcontainer/` builds ParFlow with CLM from the release tag and installs
-  the Python packages.  The container is untested as of this writing; the forcing download in
-  `postCreateCommand` is the slow step (330 MB compressed).
+- GitHub Codespaces: `.devcontainer/` builds HDF5, netCDF, Hypre and ParFlow from source,
+  ParFlow from the `east-river-2026` branch pinned to one commit, and installs the Python
+  packages.  The forcing download in `postCreateCommand` is the slow step (330 MB compressed).
 
 ## Quick start
 
@@ -34,6 +41,12 @@ python scripts/pfb_to_netcdf.py runs/er_wy2017    # optional: one NetCDF per var
 ```
 
 A shorter test: `python scripts/run_east_river.py --hours 240 --name er_10days`.
+
+The overland flow scheme is a switch: `--overland kinematic` (the default), `diffusive` (the
+diffusive wave with the friction-slope magnitude lagged one step), `implicit` (the same with
+the magnitude at the current step), or `dwe` (the `OverlandDiffusive` boundary condition).
+On this basin the four cost the same and score the same against USGS; they differ in ponded
+depth on a few flat cells.
 
 ## The domain
 

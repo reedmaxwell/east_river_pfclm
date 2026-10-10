@@ -4,6 +4,9 @@
         "dockerfile": "Dockerfile",
         "context": ".."
     },
+    "otherPortsAttributes": {
+        "onAutoForward": "ignore"
+    },
     "hostRequirements": {
         "cpus": 4,
         "memory": "8gb",
