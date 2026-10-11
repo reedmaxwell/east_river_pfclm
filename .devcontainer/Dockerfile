@@ -173,6 +173,9 @@ USER root
 ENV HOME=/root
 RUN $CMAKE --build $BASE_PATH/parflow/build
 RUN $CMAKE --install $BASE_PATH/parflow/build --prefix /opt/parflow
+# pip builds the pftools wheel in place and writes pftools.egg-info into the
+# source tree, so the installed copy must be writable by the user that runs pip.
+RUN chown -R ubuntu:ubuntu /opt/parflow/python
 USER ubuntu
 ENV HOME=/home/ubuntu
 
